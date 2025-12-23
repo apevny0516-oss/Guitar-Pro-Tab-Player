@@ -433,18 +433,15 @@
                 const fileUrl = params.get('file');
                 const base64Data = params.get('data');
                 
-                if (base64Data) {
-                    // Load from base64 data
-                    try {
-                        const binaryString = atob(base64Data);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-                        this.api.load(bytes);
-                    } catch (err) {
-                        this.showError('Failed to decode file data');
-                    }
+                // Check hash for base64 data (preferred for large files - no server limit)
+                const hashData = window.location.hash.slice(1); // Remove the # 
+                
+                if (hashData && hashData.length > 10) {
+                    // Load from hash (base64 data)
+                    this.loadBase64Data(hashData);
+                } else if (base64Data) {
+                    // Load from query param (for small files)
+                    this.loadBase64Data(base64Data);
                 } else if (fileUrl) {
                     // Load from URL
                     try {
@@ -453,7 +450,36 @@
                         this.showError('Failed to load file');
                     }
                 } else {
-                    this.showError('No file specified');
+                    // No URL params - listen for postMessage (fallback)
+                    this.listenForPostMessage();
+                }
+            }
+            
+            loadBase64Data(base64Data) {
+                try {
+                    const binaryString = atob(base64Data);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    this.api.load(bytes);
+                } catch (err) {
+                    this.showError('Failed to decode file data');
+                }
+            }
+            
+            listenForPostMessage() {
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'loadGPFile') {
+                        if (event.data.base64) {
+                            this.loadBase64Data(event.data.base64);
+                        }
+                    }
+                });
+                
+                // Signal to parent that we're ready to receive data
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'tabplayer-ready' }, '*');
                 }
             }
             

@@ -748,9 +748,9 @@
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
                 <p>
-                    <strong>File Upload Method:</strong> When you upload a file directly, the entire file is encoded and embedded in the URL (base64). 
-                    This means no separate file hosting is needed! The embed code is self-contained but will be longer for larger files.
-                    Best for files under 1MB.
+                    <strong>File Upload Method:</strong> When you upload a file directly, it's encoded (base64) and embedded in the iframe URL. 
+                    No separate file hosting needed! The embed code is a simple iframe that works everywhere. 
+                    Works best with smaller files (under 500KB).
                 </p>
             </div>
             
@@ -878,9 +878,9 @@
                 return;
             }
             
-            // Check file size (warn if > 2MB for base64)
-            if (file.size > 2 * 1024 * 1024) {
-                const proceed = confirm('This file is larger than 2MB. The embed code will be very long. Continue?');
+            // Check file size (warn if > 500KB for embed)
+            if (file.size > 500 * 1024) {
+                const proceed = confirm(`This file is ${formatFileSize(file.size)}. The embed code will be very long. Consider using the URL method for large files. Continue anyway?`);
                 if (!proceed) return;
             }
             
@@ -940,10 +940,10 @@
             const selectedSize = document.querySelector('input[name="size"]:checked').value;
             const height = sizes[selectedSize];
             
-            // Build embed URL with base64 data
-            const embedUrl = `${miniBaseUrl}?data=${encodeURIComponent(uploadedFileData)}&name=${encodeURIComponent(uploadedFile.name)}`;
+            // Use hash fragment to pass data (much larger size limit than query params)
+            const embedUrl = `${miniBaseUrl}#${uploadedFileData}`;
             
-            // Generate iframe code
+            // Generate simple iframe code (no JavaScript needed!)
             const iframeCode = `<iframe 
     src="${embedUrl}"
     width="100%"
