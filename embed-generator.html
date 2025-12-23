@@ -641,7 +641,9 @@
                                     </svg>
                                 </button>
                             </div>
-                            <button class="generate-btn" id="generateFromFileBtn" style="margin-top: 16px;" disabled>Generate Embed</button>
+                            <div class="button-group" style="display: flex; gap: 12px; margin-top: 16px;">
+                                <button class="generate-btn" id="generateFromFileBtn" disabled>Generate Embed</button>
+                            </div>
                         </div>
                         
                         <!-- URL Tab Content -->
@@ -748,9 +750,9 @@
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
                 <p>
-                    <strong>File Upload Method:</strong> When you upload a file directly, it's encoded (base64) and embedded in the iframe URL. 
-                    No separate file hosting needed! The embed code is a simple iframe that works everywhere. 
-                    Works best with smaller files (under 500KB).
+                    <strong>How it works:</strong> Upload your GP file here, then add it to the 
+                    <a href="https://github.com/apevny0516-oss/Guitar-Pro-Tab-Player/tree/main/Guitar%20Pro%20Files" target="_blank" style="color: #00d4aa;">Guitar Pro Files</a> 
+                    folder in the GitHub repository. The embed code references the file from GitHub Pages.
                 </p>
             </div>
             
@@ -761,21 +763,8 @@
                     <line x1="12" y1="8" x2="12.01" y2="8"/>
                 </svg>
                 <p>
-                    <strong>Hosting the player:</strong> For either method to work, the mini-embed.html file must be hosted on a web server accessible to your users. 
-                    You can host it on your own server, GitHub Pages, or any static hosting service. 
-                    Update the iframe src URL to point to your hosted mini-embed.html location.
-                </p>
-            </div>
-            
-            <div class="info-box" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3); margin-top: 16px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #ffc107;">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                <p>
-                    <strong>URL Method - CORS Note:</strong> If using the URL method and the file fails to load due to browser security (CORS), 
-                    the embed player will show an "Upload File Instead" button. Consider using the file upload method instead for the most reliable experience.
+                    <strong>Preview vs Final:</strong> The preview works immediately using the uploaded file. 
+                    The embed code will only work after you've added the file to the GitHub repository and GitHub Pages has deployed.
                 </p>
             </div>
         </main>
@@ -815,9 +804,16 @@
         let uploadedFile = null;
         let uploadedFileData = null;
         
-        // Get the base URL for the embed player (use mini-embed for file uploads)
+        // GitHub Pages base URL - UPDATE THIS to your GitHub Pages URL
+        const GITHUB_PAGES_BASE = 'https://apevny0516-oss.github.io/Guitar-Pro-Tab-Player';
+        
+        // Get the base URL for the embed player
         const baseUrl = window.location.href.replace('embed-generator.html', 'embed.html');
         const miniBaseUrl = window.location.href.replace('embed-generator.html', 'mini-embed.html');
+        
+        // For hosted files, use the GitHub Pages URL
+        const hostedMiniBaseUrl = `${GITHUB_PAGES_BASE}/mini-embed.html`;
+        const gpFilesBaseUrl = `${GITHUB_PAGES_BASE}/Guitar%20Pro%20Files`;
         
         // Tab switching
         elements.inputTabs.forEach(tab => {
@@ -878,11 +874,7 @@
                 return;
             }
             
-            // Check file size (warn if > 500KB for embed)
-            if (file.size > 500 * 1024) {
-                const proceed = confirm(`This file is ${formatFileSize(file.size)}. The embed code will be very long. Consider using the URL method for large files. Continue anyway?`);
-                if (!proceed) return;
-            }
+            // File size is no longer a concern since we host files on GitHub
             
             uploadedFile = file;
             
@@ -931,7 +923,7 @@
         elements.generateFromFileBtn.addEventListener('click', generateEmbedFromFile);
         
         function generateEmbedFromFile() {
-            if (!uploadedFileData) {
+            if (!uploadedFileData || !uploadedFile) {
                 alert('Please upload a file first');
                 return;
             }
@@ -940,10 +932,12 @@
             const selectedSize = document.querySelector('input[name="size"]:checked').value;
             const height = sizes[selectedSize];
             
-            // Use hash fragment to pass data (much larger size limit than query params)
-            const embedUrl = `${miniBaseUrl}#${uploadedFileData}`;
+            // Generate the hosted file URL (file will be in Guitar Pro Files folder)
+            const encodedFileName = encodeURIComponent(uploadedFile.name);
+            const hostedFileUrl = `${gpFilesBaseUrl}/${encodedFileName}`;
+            const embedUrl = `${hostedMiniBaseUrl}?file=${encodeURIComponent(hostedFileUrl)}`;
             
-            // Generate simple iframe code (no JavaScript needed!)
+            // Generate simple iframe code pointing to hosted file
             const iframeCode = `<iframe 
     src="${embedUrl}"
     width="100%"
@@ -959,10 +953,72 @@
             elements.embedCode.classList.remove('placeholder');
             elements.copyBtn.style.display = 'flex';
             
-            // Update preview
+            // Show file upload instructions
+            showFileInstructions(uploadedFile.name);
+            
+            // For preview, use base64 so it works immediately
+            const previewUrl = `${miniBaseUrl}#${uploadedFileData}`;
             elements.previewContainer.style.display = 'block';
             elements.previewFrame.style.height = `${height}px`;
-            elements.previewFrame.src = embedUrl;
+            elements.previewFrame.src = previewUrl;
+        }
+        
+        function showFileInstructions(fileName) {
+            // Check if instructions already exist
+            let instructionsEl = document.getElementById('uploadInstructions');
+            if (!instructionsEl) {
+                instructionsEl = document.createElement('div');
+                instructionsEl.id = 'uploadInstructions';
+                instructionsEl.className = 'canvas-instructions';
+                instructionsEl.style.marginTop = '16px';
+                instructionsEl.style.background = 'rgba(0, 212, 170, 0.1)';
+                instructionsEl.style.borderColor = 'rgba(0, 212, 170, 0.3)';
+                
+                // Insert after embed code section
+                const embedOutput = document.querySelector('.embed-output');
+                embedOutput.parentNode.insertBefore(instructionsEl, embedOutput.nextSibling);
+            }
+            
+            instructionsEl.innerHTML = `
+                <h4 style="color: #00d4aa;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17,8 12,3 7,8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Add File to Repository
+                </h4>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">
+                    For the embed to work, add <strong>${fileName}</strong> to the <code>Guitar Pro Files</code> folder:
+                </p>
+                <ol>
+                    <li>Go to your <a href="https://github.com/apevny0516-oss/Guitar-Pro-Tab-Player/tree/main/Guitar%20Pro%20Files" target="_blank" style="color: #4f9eff;">GitHub repository</a></li>
+                    <li>Click <strong>Add file</strong> → <strong>Upload files</strong></li>
+                    <li>Drag <strong>${fileName}</strong> into the upload area</li>
+                    <li>Click <strong>Commit changes</strong></li>
+                </ol>
+                <button class="generate-btn" id="downloadFileBtn" style="margin-top: 12px; background: linear-gradient(135deg, #00d4aa, #00b894);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download File
+                </button>
+            `;
+            
+            // Add download button handler
+            document.getElementById('downloadFileBtn').addEventListener('click', downloadFile);
+        }
+        
+        function downloadFile() {
+            if (!uploadedFile) return;
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(uploadedFile);
+            link.download = uploadedFile.name;
+            link.click();
+            URL.revokeObjectURL(link.href);
         }
         
         // Generate embed from URL
