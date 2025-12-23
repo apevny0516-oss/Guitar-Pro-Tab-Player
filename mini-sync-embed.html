@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TabPlayer Mini Sync</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --border: #e5e5e5;
+            --text: #333333;
+            --accent: #4a4a4a;
+            --play-bg: #f5f5f0;
+            --play-hover: #eaeae5;
+            --selection: rgba(255, 200, 50, 0.3);
+            --real-audio: #e74c3c;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        
+        .mini-player {
+            display: flex;
+            height: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--bg);
+        }
+        
+        /* Play Button */
+        .play-column {
+            width: 60px;
+            min-width: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--play-bg);
+            border-right: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .play-column:hover {
+            background: var(--play-hover);
+        }
+        
+        .play-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--accent);
+        }
+        
+        .play-btn svg {
+            width: 24px;
+            height: 24px;
+            transition: transform 0.1s;
+        }
+        
+        .play-column:hover .play-btn svg {
+            transform: scale(1.1);
+        }
+        
+        .play-btn .pause-icon {
+            display: none;
+        }
+        
+        .play-btn.playing .play-icon {
+            display: none;
+        }
+        
+        .play-btn.playing .pause-icon {
+            display: block;
+        }
+        
+        .audio-badge {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 3px 6px;
+            background: var(--real-audio);
+            border-radius: 3px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 0.03em;
+        }
+        
+        .audio-badge svg {
+            width: 10px;
+            height: 10px;
+        }
+        
+        /* Notation Area */
+        .notation-area {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+            background: var(--bg);
+            position: relative;
+            min-height: 0;
+        }
+        
+        .notation-area::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        
+        .notation-area::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+        
+        .notation-area::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+        
+        /* Loading State */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 0.85rem;
+            gap: 8px;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e0e0e0;
+            border-top-color: #666;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-state {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 0.85rem;
+            padding: 20px;
+            text-align: center;
+            gap: 12px;
+        }
+        
+        .error-state .error-icon {
+            color: #e74c3c;
+        }
+        
+        .file-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .upload-btn {
+            padding: 8px 16px;
+            background: var(--accent);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        
+        .upload-btn:hover {
+            background: #333;
+        }
+        
+        /* Footer */
+        .mini-footer {
+            position: absolute;
+            bottom: 8px;
+            left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: #999;
+        }
+        
+        .mini-footer svg {
+            width: 14px;
+            height: 14px;
+            color: #f5a623;
+        }
+        
+        /* Loop indicator */
+        .loop-indicator {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(255, 200, 50, 0.9);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .loop-indicator.visible {
+            display: flex;
+        }
+        
+        .loop-indicator svg {
+            width: 12px;
+            height: 12px;
+        }
+        
+        /* Bar indicator */
+        .bar-indicator {
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            color: #666;
+        }
+        
+        .bar-indicator .current {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #333;
+        }
+        
+        /* AlphaTab Overrides */
+        .at-surface {
+            background: transparent !important;
+        }
+        
+        .at-cursor-bar {
+            background: rgba(231, 76, 60, 0.12) !important;
+        }
+        
+        /* Hide the vertical beat cursor - note highlighting works without it */
+        .at-cursor-beat {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        .at-highlight *,
+        .note-highlight *,
+        .note-playing {
+            fill: var(--real-audio) !important;
+        }
+        
+        .at-highlight,
+        .note-highlight {
+            fill: var(--real-audio) !important;
+        }
+        
+        /* Tab number highlighting */
+        text.note-playing {
+            fill: var(--real-audio) !important;
+            font-weight: bold !important;
+        }
+        
+        /* Note head highlighting */
+        circle.note-playing {
+            fill: var(--real-audio) !important;
+        }
+        
+        .at-selection div {
+            background: var(--selection) !important;
+        }
+        
+        .at-main {
+            padding: 16px 20px !important;
+        }
+        
+        /* Keep bar cursor visible */
+        .at-cursor-bar {
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="mini-player">
+        <!-- Play Button Column -->
+        <div class="play-column" id="playColumn">
+            <button class="play-btn" id="playBtn" disabled>
+                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21"/>
+                </svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                </svg>
+            </button>
+            <div class="audio-badge">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+                </svg>
+                AUDIO
+            </div>
+        </div>
+        
+        <!-- Notation Area -->
+        <div class="notation-area" id="alphaTab">
+            <div class="loading-state" id="loadingState">
+                <div class="spinner"></div>
+                <span id="loadingText">Loading...</span>
+            </div>
+            <div class="error-state" id="errorState">
+                <svg class="error-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span id="errorMessage">Failed to load</span>
+                <div class="file-inputs">
+                    <input type="file" id="syncInput" accept=".tabsync,.json" hidden>
+                    <input type="file" id="gpInput" accept=".gp,.gp3,.gp4,.gp5,.gpx" hidden>
+                    <input type="file" id="audioInput" accept="audio/*" hidden>
+                    <button class="upload-btn" id="uploadSyncBtn">Upload .tabsync</button>
+                    <button class="upload-btn" id="uploadGpBtn" style="display:none">Upload GP File</button>
+                    <button class="upload-btn" id="uploadAudioBtn" style="display:none">Upload Audio</button>
+                </div>
+            </div>
+            
+            <!-- Bar Indicator -->
+            <div class="bar-indicator" id="barIndicator" style="display:none">
+                Bar <span class="current" id="currentBar">1</span>/<span id="totalBars">1</span>
+            </div>
+            
+            <!-- Loop Indicator -->
+            <div class="loop-indicator" id="loopIndicator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="17,1 21,5 17,9"/>
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                    <polyline points="7,23 3,19 7,15"/>
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                </svg>
+                <span>LOOP</span>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mini-footer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+            </svg>
+            <span>TABPLAYER</span>
+        </div>
+    </div>
+
+    <script>
+        class MiniSyncPlayer {
+            constructor() {
+                this.alphaTab = null;
+                this.audioContext = null;
+                this.audioBuffer = null;
+                this.audioSource = null;
+                this.gainNode = null;
+                
+                this.syncData = null;
+                this.score = null;
+                this.barTickMap = [];
+                
+                this.isPlaying = false;
+                this.isLooping = false;
+                this.currentTime = 0;
+                this.duration = 0;
+                this.startedAt = 0;
+                this.pausedAt = 0;
+                this.currentBar = 0;
+                this.animationFrame = null;
+                this.syncOffset = 0;
+                this.highlightedElements = [];
+                this.alphaTabStarted = false;
+                
+                this.elements = {
+                    container: document.getElementById('alphaTab'),
+                    loadingState: document.getElementById('loadingState'),
+                    loadingText: document.getElementById('loadingText'),
+                    errorState: document.getElementById('errorState'),
+                    errorMessage: document.getElementById('errorMessage'),
+                    playColumn: document.getElementById('playColumn'),
+                    playBtn: document.getElementById('playBtn'),
+                    barIndicator: document.getElementById('barIndicator'),
+                    currentBar: document.getElementById('currentBar'),
+                    totalBars: document.getElementById('totalBars'),
+                    loopIndicator: document.getElementById('loopIndicator'),
+                    syncInput: document.getElementById('syncInput'),
+                    gpInput: document.getElementById('gpInput'),
+                    audioInput: document.getElementById('audioInput'),
+                    uploadSyncBtn: document.getElementById('uploadSyncBtn'),
+                    uploadGpBtn: document.getElementById('uploadGpBtn'),
+                    uploadAudioBtn: document.getElementById('uploadAudioBtn')
+                };
+                
+                this.init();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.loadFromUrl();
+            }
+            
+            bindEvents() {
+                this.elements.playColumn.addEventListener('click', () => this.togglePlayPause());
+                
+                // Manual file uploads
+                this.elements.uploadSyncBtn.addEventListener('click', () => this.elements.syncInput.click());
+                this.elements.uploadGpBtn.addEventListener('click', () => this.elements.gpInput.click());
+                this.elements.uploadAudioBtn.addEventListener('click', () => this.elements.audioInput.click());
+                
+                this.elements.syncInput.addEventListener('change', (e) => {
+                    if (e.target.files[0]) this.loadSyncFile(e.target.files[0]);
+                });
+                this.elements.gpInput.addEventListener('change', (e) => {
+                    if (e.target.files[0]) this.loadGpFile(e.target.files[0]);
+                });
+                this.elements.audioInput.addEventListener('change', (e) => {
+                    if (e.target.files[0]) this.loadAudioFile(e.target.files[0]);
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.togglePlayPause();
+                    }
+                });
+            }
+            
+            async loadFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+                const syncUrl = params.get('sync');
+                const gpUrl = params.get('gp');
+                const audioUrl = params.get('audio');
+                
+                // Optional offset in seconds (positive = cursor earlier, negative = cursor later)
+                this.syncOffset = parseFloat(params.get('offset')) || 0;
+                
+                if (!syncUrl || !gpUrl || !audioUrl) {
+                    this.showError('Missing files. Need: sync, gp, audio URLs');
+                    return;
+                }
+                
+                try {
+                    // Load sync data
+                    this.setLoading('Loading sync data...');
+                    const syncResp = await fetch(syncUrl);
+                    if (!syncResp.ok) throw new Error('Failed to load sync file');
+                    this.syncData = await syncResp.json();
+                    
+                    // Initialize alphaTab
+                    this.initAlphaTab();
+                    
+                    // Load GP file
+                    this.setLoading('Loading notation...');
+                    const gpResp = await fetch(gpUrl);
+                    if (!gpResp.ok) throw new Error('Failed to load GP file');
+                    const gpData = await gpResp.arrayBuffer();
+                    this.alphaTab.load(new Uint8Array(gpData));
+                    
+                    // Load audio
+                    this.setLoading('Loading audio...');
+                    const audioResp = await fetch(audioUrl);
+                    if (!audioResp.ok) throw new Error('Failed to load audio');
+                    const audioData = await audioResp.arrayBuffer();
+                    await this.decodeAudio(audioData);
+                    
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            }
+            
+            loadSyncFile(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        this.syncData = JSON.parse(e.target.result);
+                        this.elements.uploadSyncBtn.textContent = '✓ Sync loaded';
+                        this.elements.uploadGpBtn.style.display = 'block';
+                        this.checkReady();
+                    } catch {
+                        this.showError('Invalid sync file');
+                    }
+                };
+                reader.readAsText(file);
+            }
+            
+            loadGpFile(file) {
+                if (!this.alphaTab) this.initAlphaTab(true); // true = manual mode
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.alphaTab.load(new Uint8Array(e.target.result));
+                    this.elements.uploadGpBtn.textContent = '✓ GP loaded';
+                    this.elements.uploadAudioBtn.style.display = 'block';
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            
+            loadAudioFile(file) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    await this.decodeAudio(e.target.result);
+                    this.elements.uploadAudioBtn.textContent = '✓ Audio loaded';
+                    this.checkReady();
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            
+            async decodeAudio(arrayBuffer) {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.gainNode = this.audioContext.createGain();
+                    this.gainNode.connect(this.audioContext.destination);
+                }
+                
+                this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                this.duration = this.audioBuffer.duration;
+            }
+            
+            initAlphaTab(manualMode = false) {
+                this.elements.container.querySelector('.loading-state').style.display = 'none';
+                // Keep error state visible in manual mode (it has the upload buttons)
+                if (!manualMode) {
+                    this.elements.container.querySelector('.error-state').style.display = 'none';
+                }
+                
+                const settings = {
+                    core: {
+                        fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/'
+                    },
+                    display: {
+                        staveProfile: 'Default',
+                        layoutMode: 'Horizontal',
+                        scale: 0.9,
+                        resources: {
+                            staffLineColor: '#888888',
+                            barSeparatorColor: '#888888',
+                            mainGlyphColor: '#333333',
+                            secondaryGlyphColor: '#555555'
+                        }
+                    },
+                    notation: {
+                        elements: {
+                            scoreTitle: false,
+                            scoreSubTitle: false,
+                            scoreArtist: false,
+                            scoreAlbum: false,
+                            scoreWords: false,
+                            scoreMusic: false,
+                            scoreCopyright: false,
+                            guitarTuning: false
+                        }
+                    },
+                    player: {
+                        enablePlayer: true,
+                        enableCursor: true,
+                        enableUserInteraction: true,
+                        soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
+                        scrollElement: this.elements.container,
+                        scrollMode: 'Continuous',
+                        scrollOffsetX: -200
+                    }
+                };
+                
+                this.alphaTab = new alphaTab.AlphaTabApi(this.elements.container, settings);
+                
+                this.alphaTab.scoreLoaded.on((score) => {
+                    this.score = score;
+                    this.elements.totalBars.textContent = score.masterBars.length;
+                    this.elements.loadingState.style.display = 'none';
+                });
+                
+                this.alphaTab.playerReady.on(() => {
+                    this.alphaTab.masterVolume = 0; // Mute synth audio
+                    this.alphaTab.metronomeVolume = 0;
+                    this.alphaTab.countInVolume = 0;
+                    this.buildBarTickMap();
+                    this.checkReady();
+                });
+                
+                this.alphaTab.playbackRangeChanged.on((args) => {
+                    if (args.playbackRange && args.playbackRange.endTick > args.playbackRange.startTick) {
+                        this.isLooping = true;
+                        this.loopRange = this.getTimeRangeFromTicks(args.playbackRange);
+                        this.elements.loopIndicator.classList.add('visible');
+                    } else {
+                        this.isLooping = false;
+                        this.loopRange = null;
+                        this.elements.loopIndicator.classList.remove('visible');
+                    }
+                });
+            }
+            
+            buildBarTickMap() {
+                this.barTickMap = [];
+                const tickCache = this.alphaTab.tickCache;
+                if (tickCache && tickCache.masterBars) {
+                    tickCache.masterBars.forEach((bar, i) => {
+                        this.barTickMap[i + 1] = { start: bar.start, end: bar.end };
+                    });
+                }
+            }
+            
+            
+            getTimeRangeFromTicks(tickRange) {
+                if (!this.syncData || !this.syncData.markers) return null;
+                
+                // Find bars that correspond to these ticks
+                let startBar = 1, endBar = 1;
+                for (const [bar, ticks] of Object.entries(this.barTickMap)) {
+                    if (ticks.start <= tickRange.startTick) startBar = parseInt(bar);
+                    if (ticks.start <= tickRange.endTick) endBar = parseInt(bar);
+                }
+                
+                // Get times from sync markers
+                let startTime = 0, endTime = this.duration;
+                for (const marker of this.syncData.markers) {
+                    if (marker.bar === startBar) startTime = marker.time;
+                    if (marker.bar === endBar + 1) endTime = marker.time;
+                }
+                
+                return { start: startTime, end: endTime };
+            }
+            
+            checkReady() {
+                if (this.syncData && this.score && this.audioBuffer && this.barTickMap.length > 0) {
+                    this.elements.playBtn.disabled = false;
+                    this.elements.barIndicator.style.display = 'flex';
+                    this.elements.errorState.style.display = 'none';
+                }
+            }
+            
+            togglePlayPause() {
+                if (!this.audioBuffer) return;
+                
+                if (this.isPlaying) {
+                    this.pause();
+                } else {
+                    // If we're at or past the end, restart from beginning
+                    if (this.pausedAt >= this.duration - 0.1) {
+                        this.pausedAt = 0;
+                        this.lastTick = -1;
+                    }
+                    this.play();
+                }
+            }
+            
+            play() {
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
+                this.audioSource = this.audioContext.createBufferSource();
+                this.audioSource.buffer = this.audioBuffer;
+                this.audioSource.connect(this.gainNode);
+                
+                this.audioSource.onended = () => {
+                    if (this.isPlaying) {
+                        if (this.isLooping && this.loopRange) {
+                            this.pausedAt = this.loopRange.start;
+                            this.play();
+                        } else {
+                            this.stop();
+                        }
+                    }
+                };
+                
+                const offset = this.pausedAt;
+                this.startedAt = this.audioContext.currentTime - offset;
+                this.audioSource.start(0, offset);
+                
+                this.isPlaying = true;
+                this.alphaTabStarted = false; // Track if alphaTab player has started
+                this.elements.playBtn.classList.add('playing');
+                
+                // Reset lastTick to force cursor update
+                this.lastTick = -1;
+                
+                // If starting from beginning, reset alphaTab position to 0
+                if (offset === 0) {
+                    try {
+                        this.alphaTab.tickPosition = 0;
+                    } catch(e) {}
+                }
+                
+                // DON'T start alphaTab player yet - wait until we reach first marker
+                // This prevents notation from moving during intro
+                
+                this.startUpdateLoop();
+            }
+            
+            pause() {
+                if (!this.isPlaying) return;
+                
+                this.pausedAt = this.audioContext.currentTime - this.startedAt;
+                
+                if (this.audioSource) {
+                    this.audioSource.onended = null;
+                    this.audioSource.stop();
+                    this.audioSource = null;
+                }
+                
+                this.isPlaying = false;
+                this.elements.playBtn.classList.remove('playing');
+                
+                // Pause alphaTab player if it was started
+                if (this.alphaTabStarted) {
+                    try {
+                        this.alphaTab.pause();
+                    } catch(e) {}
+                }
+                
+                this.stopUpdateLoop();
+            }
+            
+            stop() {
+                this.pause();
+                this.pausedAt = 0;
+                this.currentTime = 0;
+                this.currentBar = 0;
+                this.lastTick = -1;
+                this.alphaTabStarted = false;
+                
+                // Reset alphaTab to beginning
+                try {
+                    this.alphaTab.stop();
+                    this.alphaTab.tickPosition = 0;
+                } catch(e) {}
+                
+                // Clear any highlights
+                this.highlightedElements.forEach(el => {
+                    el.classList.remove('note-playing');
+                });
+                this.highlightedElements = [];
+            }
+            
+            startUpdateLoop() {
+                this.lastTickUpdate = 0;
+                this.lastTick = -1;
+                
+                const update = () => {
+                    if (!this.isPlaying) return;
+                    
+                    this.currentTime = this.audioContext.currentTime - this.startedAt;
+                    
+                    // Handle loop
+                    if (this.isLooping && this.loopRange && this.currentTime >= this.loopRange.end) {
+                        this.pause();
+                        this.pausedAt = this.loopRange.start;
+                        this.play();
+                        return;
+                    }
+                    
+                    this.updateCursor();
+                    this.animationFrame = requestAnimationFrame(update);
+                };
+                this.animationFrame = requestAnimationFrame(update);
+            }
+            
+            stopUpdateLoop() {
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                    this.animationFrame = null;
+                }
+            }
+            
+            updateCursor() {
+                if (!this.syncData || !this.syncData.markers || this.syncData.markers.length === 0) return;
+                
+                // Apply sync offset (positive = cursor moves earlier/ahead)
+                const adjustedTime = this.currentTime + (this.syncOffset || 0);
+                
+                // Get the first marker to check if we're in an intro section
+                const firstMarker = this.syncData.markers[0];
+                
+                // If we're before the first marker (intro section), keep notation still
+                if (adjustedTime < firstMarker.time) {
+                    // We're in intro - show countdown or waiting state
+                    if (this.currentBar !== 0) {
+                        this.currentBar = 0;
+                        this.elements.currentBar.textContent = '-';
+                    }
+                    // Keep alphaTab at tick 0 during intro
+                    if (this.lastTick !== 0) {
+                        this.lastTick = 0;
+                        try {
+                            this.alphaTab.tickPosition = 0;
+                        } catch(e) {}
+                    }
+                    // Clear highlights during intro
+                    this.highlightedElements.forEach(el => el.classList.remove('note-playing'));
+                    this.highlightedElements = [];
+                    return;
+                }
+                
+                // We've reached the first marker - start alphaTab player if not started
+                if (!this.alphaTabStarted) {
+                    this.alphaTabStarted = true;
+                    try {
+                        this.alphaTab.play();
+                    } catch(e) {}
+                }
+                
+                // Find current bar based on audio time
+                let currentBarNum = firstMarker.bar;
+                let currentBarTime = firstMarker.time;
+                let nextBarTime = this.duration;
+                
+                for (let i = 0; i < this.syncData.markers.length; i++) {
+                    const marker = this.syncData.markers[i];
+                    if (adjustedTime >= marker.time) {
+                        currentBarNum = marker.bar;
+                        currentBarTime = marker.time;
+                        nextBarTime = this.syncData.markers[i + 1]?.time || this.duration;
+                    }
+                }
+                
+                // Update bar display
+                if (currentBarNum !== this.currentBar) {
+                    this.currentBar = currentBarNum;
+                    this.elements.currentBar.textContent = currentBarNum;
+                }
+                
+                // Calculate tick position within the bar
+                const barTicks = this.barTickMap[currentBarNum];
+                if (!barTicks) return;
+                
+                const barDuration = nextBarTime - currentBarTime;
+                const timeInBar = adjustedTime - currentBarTime;
+                const progress = barDuration > 0 ? Math.max(0, Math.min(1, timeInBar / barDuration)) : 0;
+                const tick = Math.floor(barTicks.start + (barTicks.end - barTicks.start) * progress);
+                
+                // Only update if tick changed significantly (reduces flicker)
+                // Update roughly 16 times per bar for smoother highlighting
+                const ticksPerBar = barTicks.end - barTicks.start;
+                const updateThreshold = Math.floor(ticksPerBar / 16);
+                
+                if (Math.abs(tick - this.lastTick) >= updateThreshold || this.lastTick === -1) {
+                    this.lastTick = tick;
+                    try {
+                        this.alphaTab.tickPosition = tick;
+                        // Also highlight beats manually if activeBeatsChanged doesn't fire
+                        this.highlightBeatAtTick(tick);
+                    } catch (e) {}
+                }
+            }
+            
+            highlightBeatAtTick(tick) {
+                // Clear previous highlights
+                this.highlightedElements.forEach(el => {
+                    el.classList.remove('note-playing');
+                });
+                this.highlightedElements = [];
+                
+                // Find the beat at this tick using tickCache
+                const tickCache = this.alphaTab.tickCache;
+                if (!tickCache || !tickCache.masterBars) return;
+                
+                // Find the beat(s) at this tick
+                let currentBeats = [];
+                for (const masterBar of tickCache.masterBars) {
+                    if (tick >= masterBar.start && tick < masterBar.end) {
+                        for (const beatLookup of masterBar.beats) {
+                            if (tick >= beatLookup.start && tick < beatLookup.end) {
+                                currentBeats.push(beatLookup);
+                            }
+                        }
+                        break;
+                    }
+                }
+                
+                if (currentBeats.length === 0) return;
+                
+                // Use alphaTab's internal beat-to-element mapping
+                // Each beat has an 'id' property we can use to find DOM elements
+                currentBeats.forEach(beatLookup => {
+                    if (beatLookup.beat) {
+                        const beatId = beatLookup.beat.id;
+                        // Find elements with this beat ID
+                        const elements = this.elements.container.querySelectorAll(`[data-beat-id="${beatId}"]`);
+                        elements.forEach(el => {
+                            el.classList.add('note-playing');
+                            this.highlightedElements.push(el);
+                            // Also highlight child elements
+                            el.querySelectorAll('*').forEach(child => {
+                                child.classList.add('note-playing');
+                                this.highlightedElements.push(child);
+                            });
+                        });
+                    }
+                });
+            }
+            
+            setLoading(text) {
+                this.elements.loadingText.textContent = text;
+                this.elements.loadingState.style.display = 'flex';
+                this.elements.errorState.style.display = 'none';
+            }
+            
+            showError(message) {
+                this.elements.loadingState.style.display = 'none';
+                this.elements.errorState.style.display = 'flex';
+                this.elements.errorMessage.textContent = message;
+            }
+        }
+        
+        new MiniSyncPlayer();
+    </script>
+</body>
+</html>
+

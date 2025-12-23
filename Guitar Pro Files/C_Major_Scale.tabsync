@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "title": "C Major Scale",
+  "artist": "Unknown Artist",
+  "gpFile": "C Major Scale.gp",
+  "audioFile": "C Major Scale.mp3",
+  "totalBars": 3,
+  "markers": [
+    {
+      "bar": 1,
+      "time": 0
+    },
+    {
+      "bar": 2,
+      "time": 2.0666666666666664
+    },
+    {
+      "bar": 3,
+      "time": 4.034666666666666
+    }
+  ],
+  "createdAt": "2025-12-05T20:16:07.493Z"
+}

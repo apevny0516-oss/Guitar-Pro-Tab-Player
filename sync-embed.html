@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synced Tab Player</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.min.js"></script>
+    <style>
+        :root {
+            /* Deep Ocean Theme */
+            --bg-primary: #0a0e14;
+            --bg-secondary: #0f1419;
+            --bg-tertiary: #151b23;
+            --bg-elevated: #1a222d;
+            --bg-hover: #242d3a;
+            
+            /* Accent Colors */
+            --accent-primary: #00d4aa;
+            --accent-secondary: #00b894;
+            --accent-glow: rgba(0, 212, 170, 0.3);
+            --accent-subtle: rgba(0, 212, 170, 0.1);
+            
+            /* Text Colors */
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #484f58;
+            
+            /* Borders */
+            --border-color: rgba(255, 255, 255, 0.08);
+            
+            /* Typography */
+            --font-display: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-display);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .embed-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 300px;
+            background: 
+                radial-gradient(ellipse at 20% 0%, rgba(0, 212, 170, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 100%, rgba(0, 212, 170, 0.02) 0%, transparent 50%),
+                var(--bg-primary);
+        }
+        
+        /* Header */
+        .embed-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        
+        .embed-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        
+        .embed-logo svg {
+            width: 22px;
+            height: 22px;
+            color: var(--accent-primary);
+            filter: drop-shadow(0 0 6px var(--accent-glow));
+        }
+        
+        .embed-logo span {
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .sync-badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: var(--accent-subtle);
+            border: 1px solid var(--accent-primary);
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .sync-badge svg {
+            width: 10px;
+            height: 10px;
+        }
+        
+        .embed-title {
+            flex: 1;
+            font-size: 0.95rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-primary);
+        }
+        
+        .track-select {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .track-select:hover {
+            border-color: var(--accent-primary);
+        }
+        
+        /* Notation Area */
+        .notation-area {
+            flex: 1;
+            overflow: auto;
+            background: var(--bg-primary);
+            position: relative;
+        }
+        
+        .notation-area::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        .notation-area::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        .notation-area::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 5px;
+            border: 2px solid var(--bg-secondary);
+        }
+        
+        /* States */
+        .state-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 16px;
+            padding: 32px;
+            text-align: center;
+        }
+        
+        .loading-state {
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-tertiary);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-state {
+            display: none;
+            color: #ff6b6b;
+        }
+        
+        .error-state svg {
+            width: 48px;
+            height: 48px;
+            opacity: 0.7;
+        }
+        
+        /* Controls */
+        .embed-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        
+        .control-btn {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .control-btn:hover:not(:disabled) {
+            background: var(--bg-hover);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .control-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .control-btn.play-btn {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+        
+        .control-btn.play-btn:hover:not(:disabled) {
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+            color: var(--bg-primary);
+        }
+        
+        .control-btn.play-btn svg {
+            width: 22px;
+            height: 22px;
+        }
+        
+        .control-btn.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+        
+        .time-display {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            min-width: 90px;
+        }
+        
+        .bar-display {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        .progress-wrapper {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .speed-control label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .speed-control input[type="range"] {
+            width: 70px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+        
+        .speed-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+        
+        .speed-value {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+            min-width: 36px;
+        }
+        
+        /* AlphaTab Overrides */
+        .at-surface {
+            background: transparent !important;
+        }
+        
+        .at-cursor-bar {
+            background: var(--accent-subtle) !important;
+        }
+        
+        .at-cursor-beat {
+            background: var(--accent-primary) !important;
+            opacity: 0.6;
+            width: 3px !important;
+        }
+        
+        .at-highlight * {
+            fill: var(--accent-primary) !important;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            .embed-header {
+                padding: 10px 16px;
+            }
+            
+            .embed-logo span, .sync-badge {
+                display: none;
+            }
+            
+            .embed-controls {
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .speed-control {
+                order: 10;
+                width: 100%;
+                justify-content: center;
+                padding-top: 8px;
+                border-top: 1px solid var(--border-color);
+            }
+            
+            .bar-display {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="embed-container">
+        <!-- Header -->
+        <header class="embed-header">
+            <div class="embed-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18V5l12-2v13"/>
+                    <circle cx="6" cy="18" r="3"/>
+                    <circle cx="18" cy="16" r="3"/>
+                </svg>
+                <span>TabPlayer</span>
+            </div>
+            <div class="sync-badge">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="10"/>
+                </svg>
+                Synced
+            </div>
+            <div class="embed-title" id="songTitle">Loading...</div>
+            <select class="track-select" id="trackSelect" disabled>
+                <option>Select Track</option>
+            </select>
+        </header>
+        
+        <!-- Notation -->
+        <div class="notation-area" id="notation">
+            <div class="state-container loading-state" id="loadingState">
+                <div class="spinner"></div>
+                <span id="loadingText">Loading synced tab...</span>
+            </div>
+            <div class="state-container error-state" id="errorState">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span id="errorMessage">Failed to load</span>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <footer class="embed-controls">
+            <button class="control-btn" id="stopBtn" disabled title="Stop">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="1"/>
+                </svg>
+            </button>
+            <button class="control-btn play-btn" id="playBtn" disabled title="Play/Pause (Space)">
+                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="6,4 20,12 6,20"/>
+                </svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+            </button>
+            <button class="control-btn" id="loopBtn" disabled title="Loop (L)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="17,1 21,5 17,9"/>
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                    <polyline points="7,23 3,19 7,15"/>
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                </svg>
+            </button>
+            
+            <span class="bar-display" id="barDisplay">Bar —</span>
+            
+            <span class="time-display">
+                <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+            </span>
+            
+            <div class="progress-wrapper" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="speed-control">
+                <label>Speed</label>
+                <input type="range" id="speedSlider" min="50" max="150" value="100">
+                <span class="speed-value" id="speedValue">100%</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        class SyncedEmbedPlayer {
+            constructor() {
+                this.alphaTab = null;
+                this.audioCtx = null;
+                this.audioBuffer = null;
+                this.audioSource = null;
+                this.gainNode = null;
+                
+                this.score = null;
+                this.syncData = null;
+                this.barTickMap = {};
+                
+                this.isPlaying = false;
+                this.isLooping = false;
+                this.playbackSpeed = 1.0;
+                this.startTime = 0;
+                this.pausedAt = 0;
+                this.duration = 0;
+                
+                this.elements = {
+                    notation: document.getElementById('notation'),
+                    loadingState: document.getElementById('loadingState'),
+                    loadingText: document.getElementById('loadingText'),
+                    errorState: document.getElementById('errorState'),
+                    errorMessage: document.getElementById('errorMessage'),
+                    songTitle: document.getElementById('songTitle'),
+                    trackSelect: document.getElementById('trackSelect'),
+                    playBtn: document.getElementById('playBtn'),
+                    stopBtn: document.getElementById('stopBtn'),
+                    loopBtn: document.getElementById('loopBtn'),
+                    barDisplay: document.getElementById('barDisplay'),
+                    currentTime: document.getElementById('currentTime'),
+                    totalTime: document.getElementById('totalTime'),
+                    progressFill: document.getElementById('progressFill'),
+                    progressBar: document.getElementById('progressBar'),
+                    speedSlider: document.getElementById('speedSlider'),
+                    speedValue: document.getElementById('speedValue')
+                };
+                
+                this.init();
+            }
+            
+            async init() {
+                this.bindEvents();
+                await this.loadFromParams();
+            }
+            
+            bindEvents() {
+                this.elements.playBtn.addEventListener('click', () => this.togglePlay());
+                this.elements.stopBtn.addEventListener('click', () => this.stop());
+                
+                this.elements.loopBtn.addEventListener('click', () => {
+                    this.isLooping = !this.isLooping;
+                    this.elements.loopBtn.classList.toggle('active', this.isLooping);
+                });
+                
+                this.elements.speedSlider.addEventListener('input', (e) => {
+                    this.playbackSpeed = parseInt(e.target.value) / 100;
+                    this.elements.speedValue.textContent = `${e.target.value}%`;
+                    
+                    if (this.isPlaying) {
+                        const currentTime = this.getCurrentTime();
+                        this.stop();
+                        this.play(currentTime);
+                    }
+                });
+                
+                this.elements.progressBar.addEventListener('click', (e) => {
+                    const rect = this.elements.progressBar.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    const seekTime = this.duration * percent;
+                    
+                    if (this.isPlaying) {
+                        this.stop();
+                        this.play(seekTime);
+                    } else {
+                        this.pausedAt = seekTime;
+                        this.updateDisplay(seekTime);
+                    }
+                });
+                
+                this.elements.trackSelect.addEventListener('change', (e) => {
+                    const index = parseInt(e.target.value);
+                    if (!isNaN(index) && this.score) {
+                        this.alphaTab.renderTracks([this.score.tracks[index]]);
+                    }
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    switch (e.code) {
+                        case 'Space':
+                            e.preventDefault();
+                            this.togglePlay();
+                            break;
+                        case 'Escape':
+                            this.stop();
+                            break;
+                        case 'KeyL':
+                            this.elements.loopBtn.click();
+                            break;
+                    }
+                });
+            }
+            
+            async loadFromParams() {
+                const params = new URLSearchParams(window.location.search);
+                const projectId = params.get('project');
+                
+                if (projectId) {
+                    await this.loadFromLibrary(projectId);
+                } else {
+                    this.showError('No project specified. Add ?project=ID to the URL.');
+                }
+            }
+            
+            async loadFromLibrary(projectId) {
+                this.showLoading('Loading from library...');
+                
+                try {
+                    // Open IndexedDB
+                    const db = await this.openDatabase();
+                    const project = await this.getProject(db, projectId);
+                    
+                    if (!project) {
+                        this.showError('Project not found in library.');
+                        return;
+                    }
+                    
+                    // Set sync data
+                    this.syncData = {
+                        title: project.title,
+                        artist: project.artist,
+                        markers: project.markers || [],
+                        totalBars: project.totalBars
+                    };
+                    
+                    // Update title
+                    const title = project.title || 'Untitled';
+                    const artist = project.artist ? ` - ${project.artist}` : '';
+                    this.elements.songTitle.textContent = title + artist;
+                    document.title = `${title}${artist} - Synced Player`;
+                    
+                    // Load GP file
+                    if (project.gpFileData) {
+                        this.showLoading('Loading notation...');
+                        const gpData = this.base64ToArrayBuffer(project.gpFileData);
+                        await this.initAlphaTab();
+                        this.alphaTab.load(new Uint8Array(gpData));
+                    } else {
+                        this.showError('No Guitar Pro file in project.');
+                        return;
+                    }
+                    
+                    // Load audio
+                    if (project.audioFileData) {
+                        this.showLoading('Loading audio...');
+                        const audioData = this.base64ToArrayBuffer(project.audioFileData);
+                        await this.initAudio(audioData);
+                    } else {
+                        this.showError('No audio file in project.');
+                        return;
+                    }
+                    
+                } catch (err) {
+                    console.error('Failed to load project:', err);
+                    this.showError('Failed to load project: ' + err.message);
+                }
+            }
+            
+            openDatabase() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('TabPlayerLibrary', 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('projects')) {
+                            db.createObjectStore('projects', { keyPath: 'id' });
+                        }
+                    };
+                });
+            }
+            
+            getProject(db, id) {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(['projects'], 'readonly');
+                    const store = transaction.objectStore('projects');
+                    const request = store.get(id);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            base64ToArrayBuffer(base64) {
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return bytes.buffer;
+            }
+            
+            async initAlphaTab() {
+                return new Promise((resolve) => {
+                    const settings = {
+                        core: {
+                            fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/',
+                            tracks: 'all'
+                        },
+                        display: {
+                            staveProfile: 'Default',
+                            layoutMode: 'Page',
+                            scale: 0.9,
+                            resources: {
+                                staffLineColor: '#3d4450',
+                                barSeparatorColor: '#3d4450',
+                                mainGlyphColor: '#e6edf3',
+                                secondaryGlyphColor: '#8b949e',
+                                scoreInfoColor: '#e6edf3',
+                                barNumberColor: '#8b949e'
+                            }
+                        },
+                        notation: {
+                            elements: {
+                                scoreTitle: false,
+                                scoreSubTitle: false,
+                                scoreArtist: false,
+                                scoreAlbum: false,
+                                scoreWords: false,
+                                scoreMusic: false,
+                                scoreCopyright: false,
+                                guitarTuning: true
+                            }
+                        },
+                        player: {
+                            enablePlayer: true,
+                            enableCursor: true,
+                            enableUserInteraction: false,
+                            soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
+                            scrollElement: this.elements.notation,
+                            scrollMode: 'Continuous',
+                            scrollSpeed: 300
+                        }
+                    };
+                    
+                    this.alphaTab = new alphaTab.AlphaTabApi(this.elements.notation, settings);
+                    
+                    this.alphaTab.scoreLoaded.on((score) => {
+                        this.score = score;
+                        this.buildBarTickMap();
+                        
+                        // Populate track selector
+                        this.elements.trackSelect.innerHTML = '';
+                        score.tracks.forEach((track, i) => {
+                            const opt = document.createElement('option');
+                            opt.value = i;
+                            opt.textContent = track.name || `Track ${i + 1}`;
+                            this.elements.trackSelect.appendChild(opt);
+                        });
+                        this.elements.trackSelect.disabled = false;
+                    });
+                    
+                    this.alphaTab.renderFinished.on(() => {
+                        this.hideLoading();
+                    });
+                    
+                    this.alphaTab.playerReady.on(() => {
+                        // Mute alphaTab audio - we use real audio
+                        this.alphaTab.masterVolume = 0;
+                        this.alphaTab.metronomeVolume = 0;
+                        resolve();
+                    });
+                });
+            }
+            
+            buildBarTickMap() {
+                if (!this.alphaTab?.tickCache?.masterBars) return;
+                
+                this.barTickMap = {};
+                this.alphaTab.tickCache.masterBars.forEach((bar, index) => {
+                    this.barTickMap[index] = {
+                        start: bar.start,
+                        end: bar.end
+                    };
+                });
+            }
+            
+            async initAudio(arrayBuffer) {
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                this.gainNode = this.audioCtx.createGain();
+                this.gainNode.connect(this.audioCtx.destination);
+                
+                this.audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+                this.duration = this.audioBuffer.duration;
+                
+                this.elements.totalTime.textContent = this.formatTime(this.duration);
+                this.enableControls();
+            }
+            
+            enableControls() {
+                this.elements.playBtn.disabled = false;
+                this.elements.stopBtn.disabled = false;
+                this.elements.loopBtn.disabled = false;
+            }
+            
+            togglePlay() {
+                if (this.isPlaying) {
+                    this.pause();
+                } else {
+                    this.play(this.pausedAt);
+                }
+            }
+            
+            play(startFrom = 0) {
+                if (!this.audioBuffer) return;
+                
+                // Resume audio context if suspended
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+                
+                // Stop existing source
+                if (this.audioSource) {
+                    this.audioSource.stop();
+                    this.audioSource.disconnect();
+                }
+                
+                // Create new source
+                this.audioSource = this.audioCtx.createBufferSource();
+                this.audioSource.buffer = this.audioBuffer;
+                this.audioSource.playbackRate.value = this.playbackSpeed;
+                this.audioSource.connect(this.gainNode);
+                
+                // Handle loop or end
+                this.audioSource.onended = () => {
+                    if (this.isPlaying) {
+                        if (this.isLooping) {
+                            this.play(0);
+                        } else {
+                            this.stop();
+                        }
+                    }
+                };
+                
+                // Start playback
+                this.audioSource.start(0, startFrom);
+                this.startTime = this.audioCtx.currentTime - (startFrom / this.playbackSpeed);
+                this.isPlaying = true;
+                
+                // Start alphaTab cursor (muted)
+                if (this.alphaTab) {
+                    this.alphaTab.play();
+                }
+                
+                this.updatePlayButton();
+                this.startUpdateLoop();
+            }
+            
+            pause() {
+                this.pausedAt = this.getCurrentTime();
+                
+                if (this.audioSource) {
+                    this.audioSource.stop();
+                    this.audioSource.disconnect();
+                    this.audioSource = null;
+                }
+                
+                if (this.alphaTab) {
+                    this.alphaTab.pause();
+                }
+                
+                this.isPlaying = false;
+                this.updatePlayButton();
+            }
+            
+            stop() {
+                this.pausedAt = 0;
+                
+                if (this.audioSource) {
+                    this.audioSource.stop();
+                    this.audioSource.disconnect();
+                    this.audioSource = null;
+                }
+                
+                if (this.alphaTab) {
+                    this.alphaTab.stop();
+                }
+                
+                this.isPlaying = false;
+                this.updatePlayButton();
+                this.updateDisplay(0);
+            }
+            
+            getCurrentTime() {
+                if (!this.isPlaying) return this.pausedAt;
+                return (this.audioCtx.currentTime - this.startTime) * this.playbackSpeed;
+            }
+            
+            startUpdateLoop() {
+                const update = () => {
+                    if (!this.isPlaying) return;
+                    
+                    const currentTime = this.getCurrentTime();
+                    this.updateDisplay(currentTime);
+                    this.syncNotation(currentTime);
+                    
+                    requestAnimationFrame(update);
+                };
+                update();
+            }
+            
+            updateDisplay(time) {
+                this.elements.currentTime.textContent = this.formatTime(time);
+                const percent = (time / this.duration) * 100;
+                this.elements.progressFill.style.width = `${Math.min(percent, 100)}%`;
+                
+                // Update bar display
+                const currentBar = this.getCurrentBar(time);
+                if (currentBar > 0) {
+                    this.elements.barDisplay.textContent = `Bar ${currentBar}`;
+                } else {
+                    this.elements.barDisplay.textContent = 'Bar —';
+                }
+            }
+            
+            getCurrentBar(time) {
+                if (!this.syncData?.markers) return 0;
+                
+                let bar = 0;
+                for (const marker of this.syncData.markers) {
+                    if (time >= marker.time) {
+                        bar = marker.bar;
+                    } else {
+                        break;
+                    }
+                }
+                return bar;
+            }
+            
+            syncNotation(currentTime) {
+                if (!this.alphaTab || !this.syncData?.markers || this.syncData.markers.length === 0) return;
+                
+                // Find current bar based on audio time
+                let currentBar = 0;
+                let barStartTime = 0;
+                let barEndTime = 0;
+                
+                for (let i = 0; i < this.syncData.markers.length; i++) {
+                    const marker = this.syncData.markers[i];
+                    const nextMarker = this.syncData.markers[i + 1];
+                    
+                    if (currentTime >= marker.time) {
+                        currentBar = marker.bar;
+                        barStartTime = marker.time;
+                        barEndTime = nextMarker ? nextMarker.time : this.duration;
+                    }
+                }
+                
+                if (currentBar === 0 || !this.barTickMap[currentBar - 1]) return;
+                
+                // Calculate position within bar
+                const barDuration = barEndTime - barStartTime;
+                const barProgress = barDuration > 0 ? (currentTime - barStartTime) / barDuration : 0;
+                
+                const barTicks = this.barTickMap[currentBar - 1];
+                const tickRange = barTicks.end - barTicks.start;
+                const currentTick = Math.floor(barTicks.start + (tickRange * Math.min(barProgress, 1)));
+                
+                // Update alphaTab position
+                try {
+                    this.alphaTab.tickPosition = currentTick;
+                } catch (e) {
+                    // Ignore tick position errors
+                }
+            }
+            
+            updatePlayButton() {
+                const playIcon = this.elements.playBtn.querySelector('.play-icon');
+                const pauseIcon = this.elements.playBtn.querySelector('.pause-icon');
+                playIcon.style.display = this.isPlaying ? 'none' : 'block';
+                pauseIcon.style.display = this.isPlaying ? 'block' : 'none';
+            }
+            
+            showLoading(text = 'Loading...') {
+                this.elements.loadingText.textContent = text;
+                this.elements.loadingState.style.display = 'flex';
+                this.elements.errorState.style.display = 'none';
+            }
+            
+            hideLoading() {
+                this.elements.loadingState.style.display = 'none';
+            }
+            
+            showError(message) {
+                this.elements.loadingState.style.display = 'none';
+                this.elements.errorState.style.display = 'flex';
+                this.elements.errorMessage.textContent = message;
+            }
+            
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        // Initialize
+        new SyncedEmbedPlayer();
+    </script>
+</body>
+</html>
+
+
+
