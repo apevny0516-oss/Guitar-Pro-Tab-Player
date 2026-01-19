@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Sync Player - TabPlayer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --bg-secondary: #0f1419;
+            --border: #1e2530;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #00d4aa;
+            --accent-glow: rgba(0, 212, 170, 0.3);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        
+        .video-sync-player {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 300px;
+        }
+        
+        /* Main Content - Video + Tab side by side */
+        .main-content {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        /* Video Section */
+        .video-section {
+            width: 40%;
+            min-width: 200px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--border);
+        }
+        
+        .video-section video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Tab Section */
+        .tab-section {
+            flex: 1;
+            overflow: auto;
+            background: var(--bg);
+            position: relative;
+        }
+        
+        .tab-section::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .tab-section::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        .tab-section::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        
+        /* Controls */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+        
+        .play-btn {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent);
+            border: none;
+            border-radius: 50%;
+            color: var(--bg);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        
+        .play-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .play-btn .pause-icon {
+            display: none;
+        }
+        
+        .play-btn.playing .play-icon {
+            display: none;
+        }
+        
+        .play-btn.playing .pause-icon {
+            display: block;
+        }
+        
+        .time-display {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+            min-width: 80px;
+        }
+        
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        
+        .bar-indicator {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            background: var(--bg);
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+        
+        .bar-indicator strong {
+            color: var(--accent);
+        }
+        
+        /* Loading State */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            z-index: 100;
+        }
+        
+        .loading-overlay.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 16px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        /* Error State */
+        .error-state {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        
+        .error-state.visible {
+            display: flex;
+        }
+        
+        .error-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* AlphaTab Overrides */
+        .at-surface {
+            background: transparent !important;
+        }
+        
+        .at-cursor-bar {
+            background: rgba(0, 212, 170, 0.1) !important;
+        }
+        
+        .at-cursor-beat {
+            background: var(--accent) !important;
+            opacity: 0.8 !important;
+            width: 3px !important;
+        }
+        
+        .at-highlight * {
+            fill: var(--accent) !important;
+        }
+        
+        .at-main {
+            padding: 12px !important;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .video-section {
+                width: 100%;
+                height: 40%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .tab-section {
+                height: 60%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="video-sync-player">
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Video -->
+            <div class="video-section">
+                <video id="video" playsinline></video>
+            </div>
+            
+            <!-- Tab -->
+            <div class="tab-section" id="alphaTab">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Loading...</div>
+                </div>
+                <div class="error-state" id="errorState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span id="errorMessage">Failed to load files</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <button class="play-btn" id="playBtn">
+                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21"/>
+                </svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                </svg>
+            </button>
+            
+            <span class="time-display">
+                <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+            </span>
+            
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="bar-indicator">
+                Bar <strong id="currentBar">1</strong> / <span id="totalBars">1</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VideoSyncPlayer {
+            constructor() {
+                this.api = null;
+                this.video = null;
+                this.isPlaying = false;
+                this.markers = [];
+                this.barTickMap = [];
+                this.currentBarNum = 1;
+                this.totalBars = 1;
+                
+                this.elements = {
+                    video: document.getElementById('video'),
+                    alphaTab: document.getElementById('alphaTab'),
+                    loadingOverlay: document.getElementById('loadingOverlay'),
+                    errorState: document.getElementById('errorState'),
+                    errorMessage: document.getElementById('errorMessage'),
+                    playBtn: document.getElementById('playBtn'),
+                    currentTime: document.getElementById('currentTime'),
+                    totalTime: document.getElementById('totalTime'),
+                    progressBar: document.getElementById('progressBar'),
+                    progressFill: document.getElementById('progressFill'),
+                    currentBar: document.getElementById('currentBar'),
+                    totalBars: document.getElementById('totalBars')
+                };
+                
+                this.video = this.elements.video;
+                this.init();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.loadFromUrl();
+            }
+            
+            bindEvents() {
+                // Play/pause
+                this.elements.playBtn.addEventListener('click', () => this.togglePlay());
+                
+                // Video events
+                this.video.addEventListener('play', () => this.onPlay());
+                this.video.addEventListener('pause', () => this.onPause());
+                this.video.addEventListener('timeupdate', () => this.onTimeUpdate());
+                this.video.addEventListener('loadedmetadata', () => this.onVideoLoaded());
+                this.video.addEventListener('error', () => this.showError('Failed to load video'));
+                
+                // Progress bar click
+                this.elements.progressBar.addEventListener('click', (e) => {
+                    const rect = this.elements.progressBar.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    this.video.currentTime = percent * this.video.duration;
+                });
+                
+                // Keyboard
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.togglePlay();
+                    }
+                });
+            }
+            
+            async loadFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+                const videoUrl = params.get('video');
+                const gpUrl = params.get('gp');
+                const xscUrl = params.get('xsc');
+                
+                if (!videoUrl || !gpUrl || !xscUrl) {
+                    this.showError('Missing video, gp, or xsc parameter');
+                    return;
+                }
+                
+                try {
+                    // Load XSC first to get markers
+                    const xscResponse = await fetch(xscUrl);
+                    if (!xscResponse.ok) throw new Error('Failed to load XSC file');
+                    const xscText = await xscResponse.text();
+                    this.parseXSC(xscText);
+                    
+                    // Load video
+                    this.video.src = videoUrl;
+                    
+                    // Initialize alphaTab and load GP file
+                    this.initAlphaTab(gpUrl);
+                    
+                } catch (err) {
+                    this.showError(err.message || 'Failed to load files');
+                }
+            }
+            
+            parseXSC(text) {
+                // Parse Transcribe! XSC format
+                // Markers are in format: M,-1,1,[measure],0,[timestamp],
+                const lines = text.split('\n');
+                let inMarkers = false;
+                
+                for (const line of lines) {
+                    if (line.startsWith('SectionStart,Markers')) {
+                        inMarkers = true;
+                        continue;
+                    }
+                    if (line.startsWith('SectionEnd,Markers')) {
+                        inMarkers = false;
+                        continue;
+                    }
+                    
+                    if (inMarkers && line.startsWith('M,')) {
+                        const parts = line.split(',');
+                        if (parts.length >= 6) {
+                            const measureNum = parseInt(parts[3]);
+                            const timestamp = parts[5];
+                            const time = this.parseTimestamp(timestamp);
+                            
+                            if (!isNaN(measureNum) && !isNaN(time)) {
+                                this.markers.push({
+                                    bar: measureNum,
+                                    time: time
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // Sort markers by time
+                this.markers.sort((a, b) => a.time - b.time);
+                
+                this.totalBars = this.markers.length > 0 
+                    ? Math.max(...this.markers.map(m => m.bar))
+                    : 1;
+                this.elements.totalBars.textContent = this.totalBars;
+                
+                console.log('Parsed markers:', this.markers);
+            }
+            
+            parseTimestamp(timestamp) {
+                // Parse format: H:MM:SS.microseconds (e.g., 0:00:01.011354)
+                const match = timestamp.match(/(\d+):(\d+):(\d+)\.?(\d*)/);
+                if (!match) return NaN;
+                
+                const hours = parseInt(match[1]);
+                const minutes = parseInt(match[2]);
+                const seconds = parseInt(match[3]);
+                const fraction = match[4] ? parseFloat('0.' + match[4]) : 0;
+                
+                return hours * 3600 + minutes * 60 + seconds + fraction;
+            }
+            
+            initAlphaTab(gpUrl) {
+                const settings = {
+                    core: {
+                        fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/',
+                        file: gpUrl
+                    },
+                    display: {
+                        staveProfile: 'Default',
+                        layoutMode: 'Horizontal',
+                        scale: 0.85,
+                        stretchForce: 0.6,
+                        resources: {
+                            staffLineColor: '#3d4450',
+                            barSeparatorColor: '#3d4450',
+                            mainGlyphColor: '#e6edf3',
+                            secondaryGlyphColor: '#8b949e',
+                            scoreInfoColor: '#e6edf3',
+                            barNumberColor: '#8b949e'
+                        }
+                    },
+                    notation: {
+                        elements: {
+                            scoreTitle: false,
+                            scoreSubTitle: false,
+                            scoreArtist: false,
+                            scoreAlbum: false,
+                            scoreWords: false,
+                            scoreMusic: false,
+                            scoreCopyright: false,
+                            guitarTuning: false
+                        }
+                    },
+                    player: {
+                        enablePlayer: true,
+                        enableCursor: true,
+                        enableUserInteraction: false,
+                        soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
+                        scrollElement: this.elements.alphaTab,
+                        scrollMode: 'Continuous',
+                        scrollOffsetX: -150
+                    }
+                };
+                
+                this.api = new alphaTab.AlphaTabApi(this.elements.alphaTab, settings);
+                
+                this.api.scoreLoaded.on((score) => {
+                    console.log('Score loaded:', score.title);
+                    // Update total bars from score if markers don't have it
+                    if (score.masterBars && score.masterBars.length > this.totalBars) {
+                        this.totalBars = score.masterBars.length;
+                        this.elements.totalBars.textContent = this.totalBars;
+                    }
+                });
+                
+                this.api.playerReady.on(() => {
+                    console.log('Player ready');
+                    // Mute alphaTab - we use video audio
+                    this.api.masterVolume = 0;
+                    this.api.metronomeVolume = 0;
+                    this.buildBarTickMap();
+                    this.hideLoading();
+                });
+                
+                this.api.error.on((e) => {
+                    console.error('AlphaTab error:', e);
+                    this.showError('Failed to load Guitar Pro file');
+                });
+            }
+            
+            buildBarTickMap() {
+                this.barTickMap = [];
+                
+                if (!this.api || !this.api.tickCache) return;
+                
+                const tickCache = this.api.tickCache;
+                if (tickCache.masterBars) {
+                    tickCache.masterBars.forEach((barInfo, index) => {
+                        this.barTickMap[index + 1] = {
+                            start: barInfo.start,
+                            end: barInfo.end
+                        };
+                    });
+                }
+                
+                console.log('Bar tick map built:', this.barTickMap.length, 'bars');
+            }
+            
+            onVideoLoaded() {
+                this.elements.totalTime.textContent = this.formatTime(this.video.duration);
+            }
+            
+            togglePlay() {
+                if (this.video.paused) {
+                    this.video.play();
+                } else {
+                    this.video.pause();
+                }
+            }
+            
+            onPlay() {
+                this.isPlaying = true;
+                this.elements.playBtn.classList.add('playing');
+            }
+            
+            onPause() {
+                this.isPlaying = false;
+                this.elements.playBtn.classList.remove('playing');
+            }
+            
+            onTimeUpdate() {
+                const currentTime = this.video.currentTime;
+                const duration = this.video.duration || 1;
+                
+                // Update time display
+                this.elements.currentTime.textContent = this.formatTime(currentTime);
+                
+                // Update progress bar
+                const percent = (currentTime / duration) * 100;
+                this.elements.progressFill.style.width = `${percent}%`;
+                
+                // Update cursor position
+                this.updateCursor(currentTime);
+            }
+            
+            updateCursor(currentTime) {
+                if (this.markers.length === 0) return;
+                
+                // Find current bar based on time
+                let currentBarIndex = 0;
+                let currentBarTime = 0;
+                let nextBarTime = this.video.duration || 10;
+                
+                for (let i = 0; i < this.markers.length; i++) {
+                    if (currentTime >= this.markers[i].time) {
+                        currentBarIndex = i;
+                        currentBarTime = this.markers[i].time;
+                        nextBarTime = (i + 1 < this.markers.length) 
+                            ? this.markers[i + 1].time 
+                            : (this.video.duration || nextBarTime);
+                    } else {
+                        break;
+                    }
+                }
+                
+                const currentMarker = this.markers[currentBarIndex];
+                if (!currentMarker) return;
+                
+                const barNumber = currentMarker.bar;
+                
+                // Update bar indicator
+                if (barNumber !== this.currentBarNum) {
+                    this.currentBarNum = barNumber;
+                    this.elements.currentBar.textContent = barNumber;
+                }
+                
+                // Update alphaTab cursor
+                if (this.barTickMap.length === 0 || !this.api) return;
+                
+                const barTicks = this.barTickMap[barNumber];
+                if (!barTicks) return;
+                
+                // Calculate progress within the bar
+                const barDuration = nextBarTime - currentBarTime;
+                const timeInBar = currentTime - currentBarTime;
+                const barProgress = barDuration > 0 
+                    ? Math.min(1, Math.max(0, timeInBar / barDuration)) 
+                    : 0;
+                
+                // Interpolate tick position
+                const tickRange = barTicks.end - barTicks.start;
+                const currentTick = Math.floor(barTicks.start + (tickRange * barProgress));
+                
+                try {
+                    this.api.tickPosition = currentTick;
+                } catch (e) {
+                    // Ignore
+                }
+            }
+            
+            formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            showError(message) {
+                this.elements.loadingOverlay.classList.add('hidden');
+                this.elements.errorState.classList.add('visible');
+                this.elements.errorMessage.textContent = message;
+            }
+            
+            hideLoading() {
+                this.elements.loadingOverlay.classList.add('hidden');
+            }
+        }
+        
+        // Initialize
+        new VideoSyncPlayer();
+    </script>
+</body>
+</html>

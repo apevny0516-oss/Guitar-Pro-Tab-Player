@@ -161,6 +161,16 @@
             color: #a855f7;
         }
         
+        .tool-card.video .tool-icon {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.05));
+            color: #3498db;
+        }
+        
+        .tool-card.video .tool-cta {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
         .tool-title {
             font-size: 1.5rem;
             font-weight: 600;
@@ -482,6 +492,54 @@
                     </div>
                     <span class="tool-cta">
                         View Library
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12,5 19,12 12,19"/>
+                        </svg>
+                    </span>
+                </a>
+                
+                <!-- Video Sync Player -->
+                <a href="video-sync-embed.html?video=Videos/ex001.mov&gp=Videos/ex001.gp&xsc=Videos/ex001.xsc" class="tool-card video">
+                    <div class="tool-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                            <line x1="7" y1="2" x2="7" y2="22"/>
+                            <line x1="17" y1="2" x2="17" y2="22"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <line x1="2" y1="7" x2="7" y2="7"/>
+                            <line x1="2" y1="17" x2="7" y2="17"/>
+                            <line x1="17" y1="17" x2="22" y2="17"/>
+                            <line x1="17" y1="7" x2="22" y2="7"/>
+                        </svg>
+                    </div>
+                    <h2 class="tool-title">Video Sync Player</h2>
+                    <p class="tool-description">
+                        Play video with synchronized guitar tabs. Perfect for lesson videos with real-time notation tracking.
+                    </p>
+                    <div class="tool-features">
+                        <span class="tool-feature">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="2" width="20" height="20" rx="2"/>
+                            </svg>
+                            Video Playback
+                        </span>
+                        <span class="tool-feature">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 18V5l12-2v13"/>
+                            </svg>
+                            Synced Tabs
+                        </span>
+                        <span class="tool-feature">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20h9"/>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                            </svg>
+                            XSC Markers
+                        </span>
+                    </div>
+                    <span class="tool-cta">
+                        Try Demo
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="5" y1="12" x2="19" y2="12"/>
                             <polyline points="12,5 19,12 12,19"/>
